@@ -1,5 +1,5 @@
 /*
- * UniPlanner UI: screens, navigation, sheets, menus, alerts and storage.
+ * Termly UI: screens, navigation, sheets, menus, alerts and storage.
  * All GPA/task rules live in logic.js (window.Logic).
  */
 (function () {
@@ -50,6 +50,7 @@
     capOutline: svg('<path d="M12 4 2 8.6l10 4.6 10-4.6L12 4Z"/><path d="M6 11v4.6c0 1.8 2.7 3.4 6 3.4s6-1.6 6-3.4V11"/><path d="M21 9.5v5.5"/>', 'fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"'),
     book: svg('<path d="M6 3h11a1 1 0 0 1 1 1v14H7a2 2 0 0 0-2 2V5a2 2 0 0 1 1-2Z"/><path d="M5 20a2 2 0 0 0 2 1h11v-3M9 7h6"/>', 'fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"'),
     checklist: svg('<path d="m3.5 6 1.6 1.6L8 4.6M3.5 13l1.6 1.6L8 11.6M12 6.5h8.5M12 13.5h8.5M4.5 19.5h.01M12 19.5h8.5"/>', 'fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"'),
+    retake: svg('<path d="M19 12a7 7 0 1 1-2-4.95"/><path d="M17.2 3v4.2H13"/>', 'fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"'),
     folder: svg('<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/><path d="M10 12h4"/>', 'fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"'),
   };
 
@@ -209,14 +210,20 @@
   const menuButton = (kind, id, title) =>
     `<button type="button" class="menu-btn" data-action="menu" data-kind="${kind}" data-id="${esc(id)}" aria-label="Options for ${esc(title)}" aria-haspopup="menu">${ICON.ellipsis}</button>`;
 
-  function infoCard({ kind, id, title, lines, openAction }) {
-    return `<div class="card info-card">
+  function infoCard({ kind, id, title, lines, openAction, extra = '' }) {
+    return `<div class="card info-card${extra ? ' has-extra' : ''}">
       ${openAction ? `<button type="button" class="card-hit" data-action="${openAction}" data-id="${esc(id)}" aria-label="Open ${esc(title)}"></button>` : ''}
       <div class="info-title">${esc(title)}</div>
       <div class="info-lines">${lines.map((line) => `<div>${esc(line)}</div>`).join('')}</div>
       ${menuButton(kind, id, title)}
+      ${extra}
     </div>`;
   }
+
+  /** Small red marker on an earlier attempt of a course that was retaken later. */
+  const retakeMarker = (course, laterSemester) =>
+    `<button type="button" class="retake-marker" data-action="retake-info" data-id="${esc(course.id)}"
+      aria-label="Retaken in ${esc(L.semesterTitle(laterSemester))}"><span>${ICON.retake}</span></button>`;
 
   function semestersScreen() {
     const semesters = L.sortSemesters(data.semesters);
@@ -256,12 +263,16 @@
           ${statTile("Semester's Credit Points:", L.clean(L.semesterCredits(s)))}
         </div>
         ${s.courses.length
-          ? `<div class="grid">${s.courses.map((c) => infoCard({
-              kind: 'course',
-              id: c.id,
-              title: L.courseTitle(c),
-              lines: [`Credit Points: ${L.creditsText(c)}`, `Grade: ${L.gradeText(c)}`],
-            })).join('')}</div>`
+          ? `<div class="grid">${s.courses.map((c) => {
+              const later = L.retakenIn(data.semesters, s, c.number);
+              return infoCard({
+                kind: 'course',
+                id: c.id,
+                title: L.courseTitle(c),
+                lines: [`Credit Points: ${L.creditsText(c)}`, `Grade: ${L.gradeText(c)}`],
+                extra: later ? retakeMarker(c, later) : '',
+              });
+            }).join('')}</div>`
           : emptyState(ICON.book, 'No Courses Yet', 'Tap + to add a course to this semester.')}
       </div>
     </div>`;
@@ -359,7 +370,7 @@
       else tab.removeAttribute('aria-current');
     });
 
-    document.title = route.tab === 'gpa' ? 'UniPlanner · GPA' : 'UniPlanner · Tasks';
+    document.title = route.tab === 'gpa' ? 'Termly · GPA' : 'Termly · Tasks';
     if (changed) {
       window.scrollTo(0, isRootHash(hash) ? scrollMemory[hash] || 0 : 0);
       renderedHash = hash;
@@ -385,6 +396,7 @@
       case 'toggle-task': return Store.toggleTask(id);
       case 'back': return goBack(route.tab === 'gpa' ? '#/gpa' : '#/tasks');
       case 'menu': return openItemMenu(target, kind, id, route);
+      case 'retake-info': return showRetakeInfo(route.semesterId, id);
       default: return undefined;
     }
   });
@@ -425,6 +437,17 @@
         ) },
       ]);
     }
+  }
+
+  function showRetakeInfo(semesterId, courseId) {
+    const s = findSemester(semesterId);
+    const c = s && s.courses.find((x) => x.id === courseId);
+    const later = c && L.retakenIn(data.semesters, s, c.number);
+    if (!later) return;
+    showAlert({
+      title: `Retaken in ${L.semesterTitle(later)}`,
+      message: `This attempt still counts in ${L.semesterTitle(s)}'s GPA and credit points. Your Total GPA and Total Credit Points use only the latest attempt.`,
+    });
   }
 
   function confirmDelete(title, message, onDelete) {
@@ -773,12 +796,13 @@
         if (document.activeElement) document.activeElement.blur();
         return;
       }
-      const owner = L.semesterContaining(data.semesters, state.number, existing && existing.id);
-      if (owner) {
-        const where = L.semesterTitle(owner);
+      // Retakes in other semesters are allowed; the same semester can't hold a course twice.
+      const semester = findSemester(semesterId);
+      if (L.courseInSemester(semester, state.number, existing && existing.id)) {
+        const where = L.semesterTitle(semester);
         showAlert({
           title: `Course Already Exists in ${where}`,
-          message: `Course number ${state.number} is already used in ${where}.`,
+          message: `Course number ${state.number} is already in this semester.`,
         });
         return;
       }
@@ -911,7 +935,7 @@
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `uniplanner-backup-${L.dayKey(new Date())}.json`;
+    link.download = `termly-backup-${L.dayKey(new Date())}.json`;
     document.body.append(link);
     link.click();
     link.remove();

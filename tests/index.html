@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
-  <title>UniPlanner Tests</title>
+  <title>Termly Tests</title>
   <style>
     body { font: 15px/1.4 -apple-system, system-ui, sans-serif; margin: 0; padding: 20px 16px 40px; background: Canvas; color: CanvasText; }
     h1 { font-size: 22px; margin: 0 0 4px; }
@@ -18,7 +18,7 @@
   </style>
 </head>
 <body>
-  <h1>UniPlanner logic tests</h1>
+  <h1>Termly logic tests</h1>
   <p id="summary">Running…</p>
   <ol id="list"></ol>
   <script src="../js/logic.js"></script>
@@ -29,7 +29,7 @@
     const summary = document.getElementById('summary');
     summary.textContent = `${results.length - failed.length} passed, ${failed.length} failed`;
     summary.className = failed.length ? 'fail' : 'pass';
-    document.title = (failed.length ? 'FAIL' : 'PASS') + ' · UniPlanner Tests';
+    document.title = (failed.length ? 'FAIL' : 'PASS') + ' · Termly Tests';
     for (const r of results) {
       const li = document.createElement('li');
       li.className = r.ok ? 'pass' : 'fail';

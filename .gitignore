@@ -1,2 +1,17 @@
+# macOS
 .DS_Store
+
+# Local tool settings (preview server config)
 .claude/
+
+# Zips made for uploading or backups
+*.zip
+
+# Exported Termly backups (contain personal grade data)
+*-backup-*.json
+
+# Build output (Xcode or anything else)
+build/
+DerivedData/
+*.xcuserstate
+xcuserdata/

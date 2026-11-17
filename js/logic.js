@@ -1,5 +1,5 @@
 /*
- * UniPlanner core logic: GPA math, validation, dates, task ordering and backups.
+ * Termly core logic: GPA math, validation, dates, task ordering and backups.
  * Pure functions only (no DOM), so the same file runs in the app, the browser
  * test page, and the command-line test runner.
  */
@@ -66,9 +66,39 @@
   const courseTitle = (c) => `${c.name} - ${c.number}`;
   const semesterCredits = (s) => s.courses.reduce((sum, c) => sum + c.credits, 0);
   const semesterGPA = (s) => average(s.courses);
-  const allCourses = (semesters) => semesters.flatMap((s) => s.courses);
-  const totalCredits = (semesters) => semesters.reduce((sum, s) => sum + semesterCredits(s), 0);
-  const totalGPA = (semesters) => average(allCourses(semesters));
+
+  /** Chronological position: Winter, Spring, Summer within a year. */
+  const semesterOrder = (s) => s.year * 3 + TERMS.indexOf(s.term);
+
+  /**
+   * The courses that count toward the totals. A course taken more than once
+   * (same number) counts only in its latest semester; earlier attempts still
+   * count in their own semester's GPA and credit points.
+   */
+  function countedCourses(semesters) {
+    const latest = new Map();
+    for (const s of semesters) {
+      for (const c of s.courses) {
+        const seen = latest.get(c.number);
+        if (!seen || semesterOrder(s) > semesterOrder(seen.semester)) latest.set(c.number, { semester: s, course: c });
+      }
+    }
+    return [...latest.values()].map((entry) => entry.course);
+  }
+
+  const totalCredits = (semesters) => countedCourses(semesters).reduce((sum, c) => sum + c.credits, 0);
+  const totalGPA = (semesters) => average(countedCourses(semesters));
+
+  /** The next semester after `semester` in which this course was taken again; null if none. */
+  function retakenIn(semesters, semester, courseNumber) {
+    let next = null;
+    for (const s of semesters) {
+      if (semesterOrder(s) <= semesterOrder(semester)) continue;
+      if (!s.courses.some((c) => c.number === courseNumber)) continue;
+      if (!next || semesterOrder(s) < semesterOrder(next)) next = s;
+    }
+    return next;
+  }
 
   /** Newest first. */
   function sortSemesters(semesters) {
@@ -81,13 +111,9 @@
     return semesters.some((s) => s.year === year && s.term === term && s.id !== excludingId);
   }
 
-  /** The semester that already holds a course with this number, if any. */
-  function semesterContaining(semesters, courseNumber, excludingCourseId) {
-    return (
-      semesters.find((s) =>
-        s.courses.some((c) => c.number === courseNumber && c.id !== excludingCourseId)
-      ) || null
-    );
+  /** A semester can't hold the same course twice; retakes go in later semesters. */
+  function courseInSemester(semester, courseNumber, excludingCourseId) {
+    return semester.courses.some((c) => c.number === courseNumber && c.id !== excludingCourseId);
   }
 
   const isValidCourseNumber = (text) => /^\d{8}$/.test(text);
@@ -178,7 +204,7 @@
 
   function buildBackup(data, now = new Date()) {
     return {
-      app: 'UniPlanner',
+      app: 'Termly',
       version: 1,
       exportedAt: now.toISOString(),
       semesters: data.semesters,
@@ -234,7 +260,7 @@
   /** Validates backup/stored data and returns a clean copy. Throws a readable Error if invalid. */
   function normalizeBackup(raw) {
     if (!raw || typeof raw !== 'object' || !Array.isArray(raw.semesters) || !Array.isArray(raw.tasks)) {
-      throw new Error('This file is not a UniPlanner backup.');
+      throw new Error('This file is not a Termly backup.');
     }
     const semesters = raw.semesters.map((s, i) => {
       const where = `Semester ${i + 1}`;
@@ -252,13 +278,13 @@
     });
 
     const seenSemesters = new Set();
-    const seenNumbers = new Set();
     for (const s of semesters) {
       const title = semesterTitle(s);
       if (seenSemesters.has(title)) throw new Error(`Semester ${title} appears twice.`);
       seenSemesters.add(title);
+      const seenNumbers = new Set();
       for (const c of s.courses) {
-        if (seenNumbers.has(c.number)) throw new Error(`Course number ${c.number} appears twice.`);
+        if (seenNumbers.has(c.number)) throw new Error(`Course number ${c.number} appears twice in ${title}.`);
         seenNumbers.add(c.number);
       }
     }
@@ -280,12 +306,13 @@
     courseTitle,
     semesterCredits,
     semesterGPA,
-    allCourses,
+    countedCourses,
     totalCredits,
     totalGPA,
+    retakenIn,
     sortSemesters,
     semesterExists,
-    semesterContaining,
+    courseInSemester,
     isValidCourseNumber,
     sanitizeCourseNumber,
     parseGrade,

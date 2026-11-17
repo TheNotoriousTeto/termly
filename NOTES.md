@@ -15,6 +15,13 @@ Decisions and fixes made on top of [SPEC.md](SPEC.md). The web app copies the na
 - Deleting a semester also deletes its courses, and the confirmation says so.
 - Editing a course or semester never warns about a "duplicate" of itself.
 
+**Retaken courses** (added after the spec; a course is identified by its number)
+- The same course can be added in a later semester with no warning. Adding it twice in the *same* semester is blocked with "Course Already Exists in …".
+- Each semester's GPA and credit points always include its own attempt, with the values entered there.
+- **Total GPA and Total Credit Points use only the latest attempt** (latest by semester date, not by entry order), including its credit points. If the old attempt had 5 points and the retake has 4, the old semester still counts 5, while the total counts 4. A lower retake grade still replaces the old one.
+- Earlier attempts get a small red ↻ marker in the card's bottom-right corner. Tapping it says which semester the course was retaken in. The latest attempt has no marker.
+- Backups may contain the same course in different semesters, but not twice in one semester.
+
 **Tasks**
 - The days list runs from Today through six days ahead.
 - Tasks are sorted by importance, then points (highest first), then title.
@@ -28,7 +35,7 @@ Decisions and fixes made on top of [SPEC.md](SPEC.md). The web app copies the na
 - The ⋯ button is gray.
 
 ## New in the web version
-- **Backup button** (top-left on the GPA and Tasks screens) opens a sheet with **Export Backup** (downloads `uniplanner-backup-YYYY-MM-DD.json`) and **Import Backup**.
+- **Backup button** (top-left on the GPA and Tasks screens) opens a sheet with **Export Backup** (downloads `termly-backup-YYYY-MM-DD.json`) and **Import Backup**.
 - Import checks the file thoroughly (bad terms, credit points, grades, dates, duplicate semesters or course numbers) and explains what's wrong.
 - A valid backup **replaces** all data, after a "Replace All Data?" confirmation.
 - Data is stored in `localStorage` (key `uniplanner.v1`), and the app asks the browser to keep it permanently. If stored data is ever unreadable, a copy is set aside instead of being overwritten.

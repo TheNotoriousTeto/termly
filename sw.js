@@ -3,7 +3,7 @@
  * and refreshes the cache in the background. Bump CACHE when you publish changes
  * so installed copies pick up the new files right away.
  */
-const CACHE = 'uniplanner-v1';
+const CACHE = 'uniplanner-v5'; // internal name; kept from before the rename
 const ASSETS = [
   './',
   './index.html',

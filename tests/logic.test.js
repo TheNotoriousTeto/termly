@@ -182,11 +182,66 @@
     eq(L.semesterExists(sample, 2025, 'Winter', 's1'), false);
   });
 
-  test('Duplicate course number names the semester it is in', () => {
-    const owner = L.semesterContaining(sample, '02340114', undefined);
-    eq(owner && L.semesterTitle(owner), '2025 - Spring');
-    eq(L.semesterContaining(sample, '99999999', undefined), null);
-    eq(L.semesterContaining(sample, '02340114', 'c-02340114'), null, 'editing the same course');
+  test('Same course twice in one semester is blocked; other semesters are fine', () => {
+    eq(L.courseInSemester(sample[1], '02340114', undefined), true);
+    eq(L.courseInSemester(sample[0], '02340114', undefined), false, 'retake in another semester');
+    eq(L.courseInSemester(sample[1], '02340114', 'c-02340114'), false, 'editing the same course');
+  });
+
+  // ---------- Retaken courses ----------
+
+  // Calculus 1 failed in 2025 Winter (5 points, 55), retaken in 2026 Winter (4 points, 85).
+  const firstTry = { ...course('01040012', 'Calculus 1', 5, 55), id: 'calc-1st' };
+  const retake = { ...course('01040012', 'Calculus 1', 4, 85), id: 'calc-2nd' };
+  const withRetake = [
+    { id: 'w25', year: 2025, term: 'Winter', courses: [firstTry, course('01140051', 'Physics 1', 4, 79.5)] },
+    { id: 'w26', year: 2026, term: 'Winter', courses: [retake] },
+  ];
+
+  test('Retake: totals use only the latest attempt, with its credit points', () => {
+    eq(L.clean(L.totalCredits(withRetake)), '8', '4 (Physics) + 4 (retake), old 5 dropped');
+    eq(L.formatGPA(L.totalGPA(withRetake)), '82.25', '(4×79.5 + 4×85) / 8');
+  });
+
+  test('Retake: each semester still shows its own attempt', () => {
+    eq(L.clean(L.semesterCredits(withRetake[0])), '9');
+    eq(L.formatGPA(L.semesterGPA(withRetake[0])), '65.89', '(5×55 + 4×79.5) / 9 = 65.888…');
+    eq(L.clean(L.semesterCredits(withRetake[1])), '4');
+    eq(L.formatGPA(L.semesterGPA(withRetake[1])), '85.00');
+  });
+
+  test('Retake: "latest" means latest semester, not the order entered', () => {
+    const reversed = [withRetake[1], withRetake[0]];
+    eq(L.formatGPA(L.totalGPA(reversed)), '82.25');
+    eq(L.clean(L.totalCredits(reversed)), '8');
+  });
+
+  test('Retake: a lower grade on the latest attempt still replaces the old one', () => {
+    const worse = [withRetake[0], { ...withRetake[1], courses: [{ ...retake, grade: 50 }] }];
+    eq(L.formatGPA(L.totalGPA(worse)), '64.75', '(4×79.5 + 4×50) / 8');
+  });
+
+  test('Retake: three attempts, only the last counts and each older one points to the next', () => {
+    const third = { ...course('01040012', 'Calculus 1', 5, 92), id: 'calc-3rd' };
+    const sems = [...withRetake, { id: 's26', year: 2026, term: 'Spring', courses: [third] }];
+    eq(L.countedCourses(sems).map((c) => c.id).sort(), ['c-01140051', 'calc-3rd']);
+    eq(L.clean(L.totalCredits(sems)), '9');
+    eq(L.semesterTitle(L.retakenIn(sems, sems[0], '01040012')), '2026 - Winter');
+    eq(L.semesterTitle(L.retakenIn(sems, sems[1], '01040012')), '2026 - Spring');
+    eq(L.retakenIn(sems, sems[2], '01040012'), null, 'latest attempt is not marked');
+  });
+
+  test('Retake: Spring follows Winter in the same year', () => {
+    const sems = [
+      { id: 'sp', year: 2025, term: 'Spring', courses: [{ ...retake, id: 'sp-c' }] },
+      { id: 'wi', year: 2025, term: 'Winter', courses: [{ ...firstTry, id: 'wi-c' }] },
+    ];
+    eq(L.countedCourses(sems).map((c) => c.id), ['sp-c']);
+    eq(L.semesterTitle(L.retakenIn(sems, sems[1], '01040012')), '2025 - Spring');
+  });
+
+  test('Retake: courses taken once are never marked', () => {
+    eq(L.retakenIn(withRetake, withRetake[0], '01140051'), null);
   });
 
   test('Semesters sort newest first', () => {
@@ -264,16 +319,16 @@
 
   test('Backup: round trip keeps everything', () => {
     const backup = L.buildBackup({ semesters: sample, tasks: todays }, new Date(Date.UTC(2026, 9, 20)));
-    eq(backup.app, 'UniPlanner');
+    eq(backup.app, 'Termly');
     eq(backup.exportedAt, '2026-10-20T00:00:00.000Z');
     const restored = L.normalizeBackup(JSON.parse(JSON.stringify(backup)));
     eq(restored, { semesters: sample, tasks: todays });
   });
 
   test('Backup: rejects files that are not backups', () => {
-    throws(() => L.normalizeBackup(null), /not a UniPlanner backup/);
-    throws(() => L.normalizeBackup({ hello: 1 }), /not a UniPlanner backup/);
-    throws(() => L.normalizeBackup([]), /not a UniPlanner backup/);
+    throws(() => L.normalizeBackup(null), /not a Termly backup/);
+    throws(() => L.normalizeBackup({ hello: 1 }), /not a Termly backup/);
+    throws(() => L.normalizeBackup([]), /not a Termly backup/);
   });
 
   test('Backup: rejects bad values with a readable reason', () => {
@@ -287,13 +342,19 @@
     throws(() => L.normalizeBackup({ semesters: [], tasks: [task('x', day, 0, 0, false, '25:00')] }), /invalid time/);
   });
 
-  test('Backup: rejects duplicate semesters and course numbers', () => {
+  test('Backup: rejects duplicate semesters and same course twice in one semester', () => {
     const s = (id, term, courses) => ({ id, year: 2025, term, courses });
     throws(() => L.normalizeBackup({ semesters: [s('a', 'Winter', []), s('b', 'Winter', [])], tasks: [] }), /appears twice/);
     throws(() => L.normalizeBackup({
-      semesters: [s('a', 'Winter', [course('12345678', 'A', 3, 90)]), s('b', 'Spring', [course('12345678', 'B', 3, 80)])],
+      semesters: [s('a', 'Winter', [course('12345678', 'A', 3, 90), { ...course('12345678', 'A', 3, 80), id: 'x' }])],
       tasks: [],
-    }), /12345678 appears twice/);
+    }), /12345678 appears twice in 2025 - Winter/);
+  });
+
+  test('Backup: keeps retaken courses across semesters', () => {
+    const out = L.normalizeBackup(JSON.parse(JSON.stringify({ semesters: withRetake, tasks: [] })));
+    eq(out.semesters.map((s) => s.courses.length), [2, 1]);
+    eq(L.formatGPA(L.totalGPA(out.semesters)), '82.25');
   });
 
   test('Backup: fills in missing ids and defaults', () => {

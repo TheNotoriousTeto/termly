@@ -1,4 +1,4 @@
-/* UniPlanner — iOS-style look, light and dark, built for iPhone. */
+/* Termly — iOS-style look, light and dark, built for iPhone. */
 
 :root {
   color-scheme: light dark;
@@ -227,6 +227,34 @@ svg { display: block; flex-shrink: 0; }
 .menu-btn:active { background: var(--fill); }
 .menu-btn svg { width: 22px; height: 22px; }
 .info-card .menu-btn { position: absolute; top: 4px; right: 4px; }
+
+/* Red "retaken" marker on an earlier attempt of a course (bottom-right of the card). */
+.info-card.has-extra .info-lines { padding-right: 30px; }
+.retake-marker {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  display: grid;
+  place-items: center;
+  background: transparent;
+}
+.retake-marker span {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--red);
+  color: #FFFFFF;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--red) 18%, transparent);
+  transition: transform 0.15s;
+}
+.retake-marker:active span { transform: scale(0.85); }
+.retake-marker svg { width: 15px; height: 15px; }
 
 /* ---------- Empty states ---------- */
 
