@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <title>UniPlanner</title>
+  <rect width="512" height="512" fill="#D7E9FA"/>
+  <!-- cap -->
+  <path d="M150 250 V330 Q256 384 362 330 V250 Z" fill="#33558C"/>
+  <!-- board, outlined in the background colour so it reads apart from the cap -->
+  <polygon points="256,140 452,222 256,304 60,222" fill="#33558C" stroke="#D7E9FA" stroke-width="12" stroke-linejoin="round"/>
+  <!-- button and cord across the board -->
+  <path d="M256 222 L404 242" stroke="#D7E9FA" stroke-width="8" stroke-linecap="round"/>
+  <circle cx="256" cy="222" r="13" fill="#D7E9FA"/>
+  <!-- hanging tassel -->
+  <path d="M404 242 V318" stroke="#33558C" stroke-width="9" stroke-linecap="round"/>
+  <rect x="390" y="312" width="28" height="54" rx="10" fill="#33558C"/>
+</svg>

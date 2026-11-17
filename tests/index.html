@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>UniPlanner Tests</title>
+  <style>
+    body { font: 15px/1.4 -apple-system, system-ui, sans-serif; margin: 0; padding: 20px 16px 40px; background: Canvas; color: CanvasText; }
+    h1 { font-size: 22px; margin: 0 0 4px; }
+    #summary { margin: 0 0 16px; font-weight: 600; }
+    #summary.pass { color: #1f9d48; }
+    #summary.fail { color: #d70015; }
+    ol { padding-left: 22px; margin: 0; }
+    li { margin: 4px 0; }
+    li.fail { color: #d70015; }
+    li small { display: block; opacity: .8; overflow-wrap: anywhere; }
+  </style>
+</head>
+<body>
+  <h1>UniPlanner logic tests</h1>
+  <p id="summary">Running…</p>
+  <ol id="list"></ol>
+  <script src="../js/logic.js"></script>
+  <script src="logic.test.js"></script>
+  <script>
+    const results = window.TestResults;
+    const failed = results.filter((r) => !r.ok);
+    const summary = document.getElementById('summary');
+    summary.textContent = `${results.length - failed.length} passed, ${failed.length} failed`;
+    summary.className = failed.length ? 'fail' : 'pass';
+    document.title = (failed.length ? 'FAIL' : 'PASS') + ' · UniPlanner Tests';
+    for (const r of results) {
+      const li = document.createElement('li');
+      li.className = r.ok ? 'pass' : 'fail';
+      li.textContent = (r.ok ? '✓ ' : '✗ ') + r.name;
+      if (!r.ok) {
+        const small = document.createElement('small');
+        small.textContent = r.error;
+        li.append(small);
+      }
+      document.getElementById('list').append(li);
+    }
+  </script>
+</body>
+</html>
