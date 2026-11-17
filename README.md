@@ -61,14 +61,12 @@ Or open http://localhost:8000/tests/ in any browser while the server is running.
 The site is published with GitHub Pages from the `main` branch, folder `/ (root)`, so every push to `main` updates it within a minute or two.
 
 1. Make your changes, and run `./tests/run.sh`.
-2. In `sw.js`, bump `CACHE` (for example `uniplanner-v5` → `uniplanner-v6`) so installed copies fetch the new files.
-3. Commit and push:
+2. In `sw.js`, bump `CACHE` to a new unique name (for example, `termly-v6`) so installed copies fetch the new files.
+3. Stage, commit, and push:
 
    ```bash
-   git commit -am "Describe the change"
-   ```
-
-   ```bash
+   git add -A
+   git commit -m "Describe the change"
    git push
    ```
 
